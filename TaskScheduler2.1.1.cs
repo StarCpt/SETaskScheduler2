@@ -38,7 +38,7 @@ namespace IngameScript
             /// <summary>
             /// Initializes a new instance of the <see cref="TaskScheduler"/> class.
             /// </summary>
-            /// <param name="maxRunCount">How many eligible jobs to run in the same tick. Use 0 to disable</param>
+            /// <param name="maxRunCount">How many eligible jobs to run in the same tick. Use 0 to set to infinite</param>
             /// <param name="runtimeLimit">Ms of runtime to keep the script under. Use 0 to disable.</param>
             public TaskScheduler(uint maxRunCount, double runtimeLimit)
             {
@@ -48,7 +48,7 @@ namespace IngameScript
             /// <summary>
             /// Updates some values in the class.
             /// </summary>
-            /// <param name="maxRunCount">How many eligible jobs to run in the same tick. Use 0 to disable</param>
+            /// <param name="maxRunCount">How many eligible jobs to run in the same tick. Use 0 to set to infinite</param>
             /// <param name="runtimeLimit">Ms of runtime to keep the script under. Use 0 to disable.</param>
             public void Update(uint maxRunCount, double runtimeLimit)
             {
@@ -134,10 +134,10 @@ namespace IngameScript
             /// Initializes a new instance of the <see cref="Task"/> class and adds it to <see cref="TaskCollection"/>.
             /// </summary>
             /// <param name="Name">Task name.</param>
-            /// <param name="Task"><see cref="IEnumerator"/><![CDATA[<]]><see cref="bool"/><![CDATA[>]]> coroutine for the task to run.</param>
-            /// <param name="RunInterval">Run frequency. Higher is slower.</param>
+            /// <param name="Task">Coroutine to run.</param>
+            /// <param name="RunInterval">Run frequency. ex: 1 = run every tick, 3 = run every 3 ticks. 0 to run once only.</param>
             /// <param name="Priority">Task Priority. If there are multiple tasks with the same priority, they execute in order added.</param>
-            /// <param name="MultipleRuns">Allow the task to run more than once in the same tick.</param>
+            /// <param name="MultipleRuns">Allow the task to run more than once in the same tick if it has steps left.</param>
             public void AddTask(string Name, IEnumerable<bool> Task, int RunInterval, int Priority, bool MultipleRuns = true)
             {
                 TaskCollection.Add(new Task(Name, Task, RunInterval, Priority, MultipleRuns));
@@ -167,11 +167,10 @@ namespace IngameScript
                 /// Initializes a new instance of the <see cref="Task"/> class.
                 /// </summary>
                 /// <param name="Name">Task name.</param>
-                /// <param name="Task"><see cref="IEnumerable"/><![CDATA[<]]><see cref="bool"/><![CDATA[>]]> for the task to run.</param>
-                /// <param name="RunInterval">Run frequency. Higher is slower. If 0, runs the task once.</param>
-                /// <param name="Priority">Runs the task with higher priority if two or more tasks attempt to run on the same tick.
-                /// If there are multiple queued tasks with the same priority, they execute in order added.</param>
-                /// <param name="MultipleRuns">Allow the task to run more than once in the same tick.</param>
+                /// <param name="Task">Coroutnine to run.</param>
+                /// <param name="RunInterval">Run frequency. ex: 1 = run every tick, 3 = run every 3 ticks. 0 to run once only.</param>
+                /// <param name="Priority">Task Priority. If there are multiple tasks with the same priority, they execute in order added.</param>
+                /// <param name="MultipleRuns">Allow the task to run more than once in the same tick if it has steps left.</param>
                 public Task(string Name, IEnumerable<bool> Task, int RunInterval, int Priority, bool MultipleRuns)
                 {
                     this.Name = Name;

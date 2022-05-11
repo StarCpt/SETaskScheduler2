@@ -28,9 +28,9 @@ namespace IngameScript
         public class TaskScheduler
         {
             /// <summary>
-            /// Tasks currently managed by the <see cref="TaskScheduler"/> class.
+            /// Tasks being managed by this <see cref="TaskScheduler"/> class.
             /// </summary>
-            private readonly List<Task> TaskCollection = new List<Task>();
+            public readonly List<Task> TaskCollection = new List<Task>();
 
             public int MaxRunCount { get; private set; }
             public double RuntimeLimit { get; private set; }
@@ -38,9 +38,9 @@ namespace IngameScript
             /// <summary>
             /// Initializes a new instance of the <see cref="TaskScheduler"/> class.
             /// </summary>
-            /// <param name="maxRunCount">Max allowed run count. Higher = slower.</param>
-            /// <param name="runtimeLimit">Ms of runtime to keep the script under.</param>
-            public TaskScheduler(int maxRunCount, double runtimeLimit)
+            /// <param name="maxRunCount">How many eligible jobs to run in the same tick. Use 0 to disable</param>
+            /// <param name="runtimeLimit">Ms of runtime to keep the script under. Use 0 to disable.</param>
+            public TaskScheduler(uint maxRunCount, double runtimeLimit)
             {
                 Update(maxRunCount, runtimeLimit);
             }
@@ -48,13 +48,12 @@ namespace IngameScript
             /// <summary>
             /// Updates some values in the class.
             /// </summary>
-            /// <param name="runBatchSize">How many queued tasks to run in one tick.</param>
-            /// <param name="runtimeLimit">Ms to keep the script runtime under.</param>
-            public void Update(int runBatchSize, double runtimeLimit)
+            /// <param name="maxRunCount">How many eligible jobs to run in the same tick. Use 0 to disable</param>
+            /// <param name="runtimeLimit">Ms of runtime to keep the script under. Use 0 to disable.</param>
+            public void Update(uint maxRunCount, double runtimeLimit)
             {
-                this.MaxRunCount = runBatchSize > 0 ? runBatchSize : 1;
+                this.MaxRunCount = maxRunCount > 0 ? maxRunCount : int.MaxValue;
 
-                //if < 0, sets it to some big number that shouldn't ever be reached
                 this.RuntimeLimit = runtimeLimit > 0 ? runtimeLimit : double.MaxValue;
             }
 
@@ -69,17 +68,11 @@ namespace IngameScript
 
                 for (i = 0; i < TaskCollection.Count; i++)
                 {
-                    if (TaskCollection[i].shouldRun)
-                    {
-                        tasksInLine++;
-                    }
-                    else if (TaskCollection[i].Check(true))
+                    if (TaskCollection[i].Check(true))
                     {
                         tasksInLine++;
                     }
                 }
-
-                //int tasksInLine = TaskCollection.Count(t => t.shouldRun);
 
                 if (tasksInLine == 0 || averageRuntime > RuntimeLimit)
                 {
@@ -106,11 +99,15 @@ namespace IngameScript
 
                         if (tasksInLine <= 0)
                         {
-                            return;//exit method
-                            break;//temp
+                            return;
+                            break;//for testing
                         }
 
-                        taskToRun = TaskCollection.Find(t => t.shouldRun);
+                        taskToRun = GetHighestPrioTask();
+                    }
+                    else if (!taskToRun.shouldRun)
+                    {
+                        taskToRun = GetHighestPrioTask();
                     }
                 }
             }
@@ -121,28 +118,29 @@ namespace IngameScript
             /// <returns></returns>
             private Task GetHighestPrioTask()
             {
-                Task taskToRun = TaskCollection[0];
-                for (int i = 1; i < TaskCollection.Count; i++)
+                int firstShouldRunTaskOccurrenceIndex = TaskCollection.FindIndex(t => t.shouldRun);
+                Task taskToRun = TaskCollection[firstShouldRunTaskOccurrenceIndex);
+                for (; firstShouldRunTaskOccurrenceIndex < TaskCollection.Count; firstShouldRunTaskOccurrenceIndex++)
                 {
-                    if (TaskCollection[i].shouldRun && TaskCollection[i].WeightedPriority > taskToRun.WeightedPriority)
+                    if (TaskCollection[firstShouldRunTaskOccurrenceIndex].shouldRun && TaskCollection[firstShouldRunTaskOccurrenceIndex].WeightedPriority > taskToRun.WeightedPriority)
                     {
-                        taskToRun = TaskCollection[i];
+                        taskToRun = TaskCollection[firstShouldRunTaskOccurrenceIndex];
                     }
                 }
                 return taskToRun;
             }
 
             /// <summary>
-            /// Initializes a new instance of the <see cref="Task"/> class and adds it to <see cref="ActiveTasks"/>.
+            /// Initializes a new instance of the <see cref="Task"/> class and adds it to <see cref="TaskCollection"/>.
             /// </summary>
             /// <param name="Name">Task name.</param>
-            /// <param name="Task"><see cref="IEnumerator"/><![CDATA[<]]><see cref="bool"/><![CDATA[>]]> for the task to run.</param>
+            /// <param name="Task"><see cref="IEnumerator"/><![CDATA[<]]><see cref="bool"/><![CDATA[>]]> coroutine for the task to run.</param>
             /// <param name="RunInterval">Run frequency. Higher is slower.</param>
-            /// <param name="Priority">Runs the task with higher priority if two or more tasks attempt to run on the same tick.
-            /// If there are multiple queued tasks with the same priority, they execute in order added.</param>
-            public void AddTask(string Name, IEnumerable<bool> Task, int RunInterval, int Priority)
+            /// <param name="Priority">Task Priority. If there are multiple tasks with the same priority, they execute in order added.</param>
+            /// <param name="MultipleRuns">Allow the task to run more than once in the same tick.</param>
+            public void AddTask(string Name, IEnumerable<bool> Task, int RunInterval, int Priority, bool MultipleRuns = true)
             {
-                TaskCollection.Add(new Task(Name, Task, RunInterval, Priority));
+                TaskCollection.Add(new Task(Name, Task, RunInterval, Priority, MultipleRuns));
             }
 
             /// <summary>
@@ -154,7 +152,7 @@ namespace IngameScript
                 private readonly ITaskEnumerator<bool> Job;
                 public readonly int RunInterval;
                 private readonly int Priority;
-                private int InternalTimer;
+                public int InternalTimer { get; private set; }
 
                 public bool shouldRun { get; private set; }
 
@@ -162,7 +160,8 @@ namespace IngameScript
                 /// Uses the following formula: <see cref="Priority"/> / (<see cref="WaitTimeInTicks"/> / 30 + 1)
                 /// </summary>
                 public double WeightedPriority { get; private set; }
-                private int WaitTimeInTicks;
+                public int WaitTimeInTicks { get; private set; }
+                private readonly bool MultipleRuns;
 
                 /// <summary>
                 /// Initializes a new instance of the <see cref="Task"/> class.
@@ -172,7 +171,8 @@ namespace IngameScript
                 /// <param name="RunInterval">Run frequency. Higher is slower. If 0, runs the task once.</param>
                 /// <param name="Priority">Runs the task with higher priority if two or more tasks attempt to run on the same tick.
                 /// If there are multiple queued tasks with the same priority, they execute in order added.</param>
-                public Task(string Name, IEnumerable<bool> Task, int RunInterval, int Priority)
+                /// <param name="MultipleRuns">Allow the task to run more than once in the same tick.</param>
+                public Task(string Name, IEnumerable<bool> Task, int RunInterval, int Priority, bool MultipleRuns)
                 {
                     this.Name = Name;
                     this.Job = new ITaskEnumerator<bool>(Task);
@@ -181,6 +181,7 @@ namespace IngameScript
                     this.Priority = Priority;
                     this.WeightedPriority = Priority;
                     this.WaitTimeInTicks = 0;
+                    this.MultipleRuns = MultipleRuns;
 
                     this.shouldRun = RunInterval == 0;
                 }
@@ -191,6 +192,8 @@ namespace IngameScript
                 /// <returns><see cref="bool"/> hasMoreSteps</returns>
                 public bool Run()
                 {
+                    shouldRun = MultipleRuns;
+
                     WaitTimeInTicks = 0;
                     InternalTimer = RunInterval;
                     WeightedPriority = Priority;
@@ -214,9 +217,9 @@ namespace IngameScript
                 }
 
                 /// <summary>
-                /// Checks if the task should run and updates <see cref="WeightedPriority"/>.
+                /// Checks if the task should run and updates <see cref="WeightedPriority"/>
                 /// </summary>
-                /// <param name="moveTimer">Advances the internal clock if true.</param>
+                /// <param name="moveTimer">Advances the internal clock if eligible</param>
                 /// <returns><see cref="bool"/> shouldRun</returns>
                 public bool Check(bool moveTimer)
                 {
@@ -244,10 +247,7 @@ namespace IngameScript
                 /// <summary>
                 /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
                 /// </summary>
-                public void Dispose()
-                {
-                    Job.Dispose();
-                }
+                public void Dispose() => Job.Dispose();
             }
 
             /// <summary>
@@ -280,15 +280,9 @@ namespace IngameScript
                     }
                 }
 
-                public void Dispose()
-                {
-                    Enumerator.Dispose();
-                }
+                public void Dispose() => Enumerator.Dispose();
 
-                public bool MoveNext()
-                {
-                    return Enumerator.MoveNext();
-                }
+                public bool MoveNext() => Enumerator.MoveNext();
 
                 /// <summary>
                 /// Can be called after <see cref="Dispose"/>. Resets the Enumerator to the beginning.

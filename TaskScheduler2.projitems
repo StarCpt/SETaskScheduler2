@@ -9,7 +9,7 @@
     <Import_RootNamespace>TaskScheduler2</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)TaskScheduler2.1.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)TaskScheduler2.1.1.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="$(MSBuildThisFileDirectory)README.md" />

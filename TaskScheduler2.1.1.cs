@@ -40,7 +40,7 @@ namespace IngameScript
             /// </summary>
             /// <param name="maxRunCount">How many eligible jobs to run in the same tick. Use 0 to set to infinite</param>
             /// <param name="runtimeLimit">Ms of runtime to keep the script under. Use 0 to disable.</param>
-            public TaskScheduler(uint maxRunCount, double runtimeLimit)
+            public TaskScheduler(int maxRunCount, double runtimeLimit)
             {
                 Update(maxRunCount, runtimeLimit);
             }
@@ -50,7 +50,7 @@ namespace IngameScript
             /// </summary>
             /// <param name="maxRunCount">How many eligible jobs to run in the same tick. Use 0 to set to infinite</param>
             /// <param name="runtimeLimit">Ms of runtime to keep the script under. Use 0 to disable.</param>
-            public void Update(uint maxRunCount, double runtimeLimit)
+            public void Update(int maxRunCount, double runtimeLimit)
             {
                 this.MaxRunCount = maxRunCount > 0 ? maxRunCount : int.MaxValue;
 
@@ -119,7 +119,7 @@ namespace IngameScript
             private Task GetHighestPrioTask()
             {
                 int firstShouldRunTaskOccurrenceIndex = TaskCollection.FindIndex(t => t.shouldRun);
-                Task taskToRun = TaskCollection[firstShouldRunTaskOccurrenceIndex);
+                Task taskToRun = TaskCollection[firstShouldRunTaskOccurrenceIndex];
                 for (; firstShouldRunTaskOccurrenceIndex < TaskCollection.Count; firstShouldRunTaskOccurrenceIndex++)
                 {
                     if (TaskCollection[firstShouldRunTaskOccurrenceIndex].shouldRun && TaskCollection[firstShouldRunTaskOccurrenceIndex].WeightedPriority > taskToRun.WeightedPriority)
@@ -136,11 +136,11 @@ namespace IngameScript
             /// <param name="Name">Task name.</param>
             /// <param name="Task">Coroutine to run.</param>
             /// <param name="RunInterval">Run frequency. ex: 1 = run every tick, 3 = run every 3 ticks. 0 to run once only.</param>
-            /// <param name="Priority">Task Priority. If there are multiple tasks with the same priority, they execute in order added.</param>
+            /// <param name="Priority">Task Priority. If there are multiple tasks with the same priority, they run in order added.</param>
             /// <param name="MultipleRuns">Allow the task to run more than once in the same tick if it has steps left.</param>
-            public void AddTask(string Name, IEnumerable<bool> Task, int RunInterval, int Priority, bool MultipleRuns = true)
+            public void AddTask(string Name, IEnumerable<bool> Task, int RunInterval, int Priority, bool MultipleRuns = false)
             {
-                TaskCollection.Add(new Task(Name, Task, RunInterval, Priority, MultipleRuns));
+                TaskCollection.Add(new Task(Name, Task, MathHelper.Clamp(RunInterval, 0, int.MaxValue), MathHelper.Clamp(Priority, 0, int.MaxValue), MultipleRuns));
             }
 
             /// <summary>

@@ -13,3 +13,4 @@
 # Run the manager
 ```scheduler.Run(AverageRuntime);```
 - ```AverageRuntime```: the average runtime of the script. up to you to get that
+note: run it every tick

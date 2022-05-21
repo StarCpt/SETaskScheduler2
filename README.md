@@ -5,8 +5,9 @@
 
 # Add coroutines to the manager
 ```scheduler.AddTask(Name, Coroutine, RunInterval, Priority, MultipleRuns);```
-- ```Name```: can be any string
-- ```Coroutine```: has to be an IEnumerable<bool>
+- ```Name```: a `string`
+- ```Coroutine```: has to be an `IEnumerable<bool>`
+- ```RunInterval```: Run frequency. ex: 1 = run every tick, 3 = run every 3 ticks. 0 to run once then remove task.
 - ```Priority```: Priority. If there are multiple tasks with the same priority, they run in order added
 - ```MultipleRuns```: Allow the task to run more than once in the same tick if it has steps left
 

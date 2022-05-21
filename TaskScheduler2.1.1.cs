@@ -82,7 +82,7 @@ namespace IngameScript
                 //TaskCollection.OrderBy(t => t.WeightedPriority);
                 //Task taskToRun = TaskCollection.Find(t => t.shouldRun);
 
-                Task taskToRun = GetHighestPrioTask();
+                Task taskToRun = GetHighestPriorityTask();
 
                 for (i = 0; i < MaxRunCount; i++)
                 {
@@ -103,11 +103,12 @@ namespace IngameScript
                             break;//for testing
                         }
 
-                        taskToRun = GetHighestPrioTask();
+                        taskToRun = GetHighestPriorityTask();
                     }
                     else if (!taskToRun.shouldRun)
                     {
-                        taskToRun = GetHighestPrioTask();
+                        taskToRun = GetHighestPriorityTask();
+                        if (taskToRun == null) break;
                     }
                 }
             }
@@ -116,15 +117,19 @@ namespace IngameScript
             /// Note: will throw an exception if <see cref="TaskCollection"/> contains no elements.
             /// </summary>
             /// <returns></returns>
-            private Task GetHighestPrioTask()
+            private Task GetHighestPriorityTask()
             {
-                int firstShouldRunTaskOccurrenceIndex = TaskCollection.FindIndex(t => t.shouldRun);
-                Task taskToRun = TaskCollection[firstShouldRunTaskOccurrenceIndex];
-                for (; firstShouldRunTaskOccurrenceIndex < TaskCollection.Count; firstShouldRunTaskOccurrenceIndex++)
+                int firstShouldRunOccurrence = TaskCollection.FindIndex(t => t.shouldRun);
+                if (firstShouldRunOccurrence == -1)
                 {
-                    if (TaskCollection[firstShouldRunTaskOccurrenceIndex].shouldRun && TaskCollection[firstShouldRunTaskOccurrenceIndex].WeightedPriority > taskToRun.WeightedPriority)
+                    return null;
+                }
+                Task taskToRun = TaskCollection[firstShouldRunOccurrence];
+                for (firstShouldRunOccurrence++; firstShouldRunOccurrence < TaskCollection.Count; firstShouldRunOccurrence++)
+                {
+                    if (TaskCollection[firstShouldRunOccurrence].shouldRun && TaskCollection[firstShouldRunOccurrence].WeightedPriority > taskToRun.WeightedPriority)
                     {
-                        taskToRun = TaskCollection[firstShouldRunTaskOccurrenceIndex];
+                        taskToRun = TaskCollection[firstShouldRunOccurrence];
                     }
                 }
                 return taskToRun;
@@ -135,7 +140,7 @@ namespace IngameScript
             /// </summary>
             /// <param name="Name">Task name.</param>
             /// <param name="Task">Coroutine to run.</param>
-            /// <param name="RunInterval">Run frequency. ex: 1 = run every tick, 3 = run every 3 ticks. 0 to run once only.</param>
+            /// <param name="RunInterval">Run frequency. ex: 1 = run every tick, 3 = run every 3 ticks. 0 to run once then remove the task.</param>
             /// <param name="Priority">Task Priority. If there are multiple tasks with the same priority, they run in order added.</param>
             /// <param name="MultipleRuns">Allow the task to run more than once in the same tick if it has steps left.</param>
             public void AddTask(string Name, IEnumerable<bool> Task, int RunInterval, int Priority, bool MultipleRuns = false)
@@ -157,7 +162,7 @@ namespace IngameScript
                 public bool shouldRun { get; private set; }
 
                 /// <summary>
-                /// Uses the following formula: <see cref="Priority"/> / (<see cref="WaitTimeInTicks"/> / 30 + 1)
+                /// Uses the following formula: <see cref="Priority"/> / (<see cref="WaitTimeInTicks"/> / 300d + 1d)
                 /// </summary>
                 public double WeightedPriority { get; private set; }
                 public int WaitTimeInTicks { get; private set; }
